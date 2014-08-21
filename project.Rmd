@@ -1,0 +1,84 @@
+---
+title: "Predicting Activities"
+date: "21/08/2014"
+output: html_document
+---
+
+We laod the data set. As we already have explicit testing dataset, we only need a cross validation dataset.
+
+```{r,cache=TRUE}
+library(caret)
+set.seed(1234)
+data <- read.csv("pml-training.csv")
+
+## As most of the features contain NA values, we only select the features having most of the non-NA values
+featuresTrain <- c("roll_belt","pitch_belt","yaw_belt","total_accel_belt","gyros_belt_x","gyros_belt_y","gyros_belt_z","accel_belt_x","accel_belt_y","accel_belt_z","magnet_belt_x","magnet_belt_y","magnet_belt_z","roll_arm","pitch_arm","yaw_arm","total_accel_arm","gyros_arm_x","gyros_arm_y","gyros_arm_z","accel_arm_x","accel_arm_y","accel_arm_z","magnet_arm_x","magnet_arm_y","magnet_arm_z","roll_dumbbell","pitch_dumbbell","yaw_dumbbell","total_accel_dumbbell","gyros_dumbbell_x","gyros_dumbbell_y","gyros_dumbbell_z","accel_dumbbell_x","accel_dumbbell_y","accel_dumbbell_z","magnet_dumbbell_x","magnet_dumbbell_y","magnet_dumbbell_z","roll_forearm","pitch_forearm","yaw_forearm","total_accel_forearm","gyros_forearm_x","gyros_forearm_y","gyros_forearm_z","accel_forearm_x","accel_forearm_y","accel_forearm_z","magnet_forearm_x","magnet_forearm_y","magnet_forearm_z","classe")
+data <- data[,featuresTrain]
+
+
+featuresTest <- c("roll_belt","pitch_belt","yaw_belt","total_accel_belt","gyros_belt_x","gyros_belt_y","gyros_belt_z","accel_belt_x","accel_belt_y","accel_belt_z","magnet_belt_x","magnet_belt_y","magnet_belt_z","roll_arm","pitch_arm","yaw_arm","total_accel_arm","gyros_arm_x","gyros_arm_y","gyros_arm_z","accel_arm_x","accel_arm_y","accel_arm_z","magnet_arm_x","magnet_arm_y","magnet_arm_z","roll_dumbbell","pitch_dumbbell","yaw_dumbbell","total_accel_dumbbell","gyros_dumbbell_x","gyros_dumbbell_y","gyros_dumbbell_z","accel_dumbbell_x","accel_dumbbell_y","accel_dumbbell_z","magnet_dumbbell_x","magnet_dumbbell_y","magnet_dumbbell_z","roll_forearm","pitch_forearm","yaw_forearm","total_accel_forearm","gyros_forearm_x","gyros_forearm_y","gyros_forearm_z","accel_forearm_x","accel_forearm_y","accel_forearm_z","magnet_forearm_x","magnet_forearm_y","magnet_forearm_z")
+testing <- read.csv("pml-testing.csv")
+testing <- testing[,featuresTest]
+
+inBuild = createDataPartition(y=data$classe, p = .7,list=FALSE)
+##Cross validation data
+validation = data[-inBuild,]
+##Training data
+training = data[ inBuild,]
+```
+
+Now lets train the dataset. We train two different models. We also pre-process the data data with centering and scaling, which sets the mean to 0 and standard deviation of the features to 1
+
+```{r,cache=TRUE}
+##
+## We use two different models
+
+## C5.0 Rules which perform excellent on cross validation
+mod1 <- mod1 <- train(classe~.,method="C5.0Rules",preProcess=c("center","scale"),data=training)
+
+## Second LDA
+mod2 <- train(classe~.,method="lda",data=training,preProcess=c("center","scale"))
+```
+
+Now test the classifiers on vaildation results.
+
+```{r,cache=TRUE}
+## Lets look how close are the predictions of these two models
+pmod1 <- predict(mod1,validation)
+pmod2 <- predict(mod2,validation)
+
+## Agreement among the classifiers
+table(pmod1,pmod2)
+
+## Now lets look at the performance of individual classifiers
+
+## Performance of the first model
+confusionMatrix(validation$classe, predict(mod1, validation)) ##96% accuracy
+
+## Performance of the second model
+confusionMatrix(validation$classe, predict(mod2, validation)) ##71% accuracy
+```
+
+Now compute the validation errors. As we have non-binary classification, we count the incorrect classifications.
+
+```{r,cache=TRUE}
+## Measure the validation errors
+
+## For first model
+sum(pmod1!=validation$classe)
+
+## For second model
+sum(pmod2!=validation$classe)
+```
+
+Now we perform the actual predictions on the testing data.
+```{r}
+## As we can see that the prediction error of the model is less, therefore we use it
+
+## Predictions based on first model
+predict(mod1,testing)
+
+## Predictions based on second model
+predict(mod2,testing)
+
+```
